@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lotto IA Móvil</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --primary: #00ffaa; --text: #fff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding-bottom: 80px; }
+        
+        /* Header */
+        .header { background: rgba(0,0,0,0.9); padding: 15px; text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header h1 { margin: 0; font-size: 18px; color: var(--primary); letter-spacing: 1px; text-transform: uppercase; }
+        
+        /* Tabs */
+        .tab-content { display: none; padding: 15px; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        
+        /* Cards */
+        .card { background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #333; }
+        .animal-icon { font-size: 32px; margin-right: 15px; width: 40px; text-align: center; }
+        .info h3 { margin: 0 0 4px 0; font-size: 17px; font-weight: 700; }
+        .info p { margin: 0; color: #888; font-size: 13px; }
+        .badge { background: rgba(0, 255, 170, 0.1); color: var(--primary); padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; border: 1px solid rgba(0, 255, 170, 0.2); }
+        
+        /* Predicciones */
+        .pred-card { border: 1px solid rgba(0, 255, 170, 0.3); background: linear-gradient(145deg, #1e1e1e, #252525); }
+        .prob-bar { height: 6px; background: #333; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .prob-fill { height: 100%; background: linear-gradient(90deg, #00ffaa, #00aaff); border-radius: 3px; transition: width 1s ease-out; }
+        .rank-badge { background: #333; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; }
+
+        /* Bottom Nav */
+        .nav { position: fixed; bottom: 0; width: 100%; background: #000; display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #333; z-index: 100; }
+        .nav-item { color: #666; text-align: center; font-size: 11px; cursor: pointer; flex: 1; transition: color 0.2s; }
+        .nav-item i { font-size: 22px; margin-bottom: 5px; display: block; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active i { transform: scale(1.1); }
+
+        /* Loading */
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .loading i { font-size: 30px; margin-bottom: 10px; color: var(--primary); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fas fa-robot"></i> Lotto IA</h1>
+    </div>
+
+    <!-- PESTAÑA 1: RESULTADOS -->
+    <div id="tab-resultados" class="tab-content active">
+        <h2 style="font-size: 13px; color: #666; margin: 10px 0 15px; text-transform: uppercase; letter-spacing: 1px;">Resultados de Hoy</h2>
+        <div id="lista-resultados">
+            <div class="loading"><i class="fas fa-circle-notch fa-spin"></i><br>Cargando resultados...</div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA 2: PRONÓSTICOS -->
+    <div id="tab-pronosticos" class="tab-content">
+        <h2 style="font-size: 13px; color: #666; margin: 10px 0 15px; text-transform: uppercase; letter-spacing: 1px;">Sugerencias IA (Próximo Sorteo)</h2>
+        <div id="lista-predicciones">
+            <div class="loading"><i class="fas fa-brain"></i><br>Esperando análisis...</div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA 3: INFO -->
+    <div id="tab-info" class="tab-content">
+        <div class="card" style="display: block; text-align: center; padding: 30px;">
+            <i class="fas fa-wifi" style="font-size: 40px; color: var(--primary); margin-bottom: 15px;"></i>
+            <h3 style="color: #fff;">Sistema Conectado</h3>
+            <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto IA.</p>
+            <div style="margin-top: 20px; font-size: 12px; color: #555;">Desarrollado por AJP-Logic</div>
+        </div>
+    </div>
+
+    <!-- NAVEGACIÓN -->
+    <div class="nav">
+        <div class="nav-item active" onclick="cambiarTab('resultados', this)">
+            <i class="fas fa-list-ol"></i> Resultados
+        </div>
+        <div class="nav-item" onclick="cambiarTab('pronosticos', this)">
+            <i class="fas fa-bolt"></i> Pronósticos
+        </div>
+        <div class="nav-item" onclick="cambiarTab('info', this)">
+            <i class="fas fa-info-circle"></i> Info
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN SUPABASE ---
+        // REEMPLAZA ESTOS VALORES CON LOS DE TU PROYECTO SUPABASE
+        const SUPABASE_URL = 'TU_SUPABASE_URL';
+        const SUPABASE_KEY = 'TU_SUPABASE_ANON_KEY';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Mapa de Iconos
+        const iconos = { 'Delfín': '🐬', 'Ballena': '🐋', 'Carnero': '🐏', 'Toro': '🐂', 'Ciempiés': '🐛', 'Alacrán': '🦂', 'León': '🦁', 'Rana': '🐸', 'Perico': '🦜', 'Ratón': '🐁', 'Águila': '🦅', 'Tigre': '🐅', 'Gato': '🐈', 'Caballo': '🐎', 'Mono': '🐒', 'Paloma': '🕊️', 'Zorro': '🦊', 'Oso': '🐻', 'Pavo': '🦃', 'Burro': '🐐', 'Chivo': '🐐', 'Cochino': '🐖', 'Gallo': '🐓', 'Camello': '🐪', 'Zebra': '🦓', 'Iguana': '🦎', 'Gallina': '🐔', 'Vaca': '🐄', 'Perro': '🐕', 'Zamuro': '🦅', 'Elefante': '🐘', 'Caimán': '🐊', 'Lapa': '🦦', 'Ardilla': '🐿️', 'Pescado': '🐟', 'Venado': '🦌', 'Jirafa': '🦒', 'Culebra': '🐍' };
+
+        // --- FUNCIONES ---
+
+        async function cargarResultados() {
+            const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            const { data, error } = await supabase
+                .from('sorteos')
+                .select('*')
+                .eq('fecha', hoy)
+                .order('id', { ascending: false });
+
+            const container = document.getElementById('lista-resultados');
+            
+            if (error) {
+                container.innerHTML = `<div style="text-align:center; padding:20px; color:#ff5555;">Error de conexión</div>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-clock" style="font-size:30px; margin-bottom:10px;"></i><br>Esperando primer sorteo...</div>';
+                return;
+            }
+
+            let html = '';
+            data.forEach(r => {
+                const icono = iconos[r.animal] || '🎲';
+                html += `
+                    <div class="card">
+                        <div style="display:flex; align-items:center;">
+                            <div class="animal-icon">${icono}</div>
+                            <div class="info">
+                                <h3>${r.numero} - ${r.animal}</h3>
+                                <p>Sorteo Oficial</p>
+                            </div>
+                        </div>
+                        <div class="badge">${r.hora}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function cargarPredicciones() {
+            const { data, error } = await supabase
+                .from('predicciones')
+                .select('*')
+                .order('ranking', { ascending: true });
+
+            const container = document.getElementById('lista-predicciones');
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">La IA está analizando datos...</div>';
+                return;
+            }
+
+            let html = '';
+            data.forEach(p => {
+                const icono = iconos[p.animal] || '🔮';
+                html += `
+                    <div class="card pred-card">
+                        <div style="width:100%">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="display:flex; align-items:center;">
+                                    <div class="rank-badge">#${p.ranking}</div>
+                                    <div class="animal-icon" style="font-size:24px; margin-right:10px;">${icono}</div>
+                                    <div class="info">
+                                        <h3>${p.numero} - ${p.animal}</h3>
+                                    </div>
+                                </div>
+                                <div style="color:var(--primary); font-weight:bold;">${p.probabilidad}%</div>
+                            </div>
+                            <div class="prob-bar">
+                                <div class="prob-fill" style="width: ${p.probabilidad}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- REALTIME SUBSCRIPTIONS ---
+        const channel = supabase.channel('cambios-lotto')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'sorteos' },
+                (payload) => {
+                    console.log('Cambio en sorteos:', payload);
+                    cargarResultados();
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'predicciones' },
+                (payload) => {
+                    console.log('Cambio en predicciones:', payload);
+                    cargarPredicciones();
+                }
+            )
+            .subscribe();
+
+        // --- UI LOGIC ---
+        window.cambiarTab = function(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        // Iniciar
+        cargarResultados();
+        cargarPredicciones();
+    </script>
+</body>
+</html>
