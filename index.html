@@ -112,12 +112,41 @@
     </div>
 
     <script>
+        // --- 0. LÓGICA SPLASH SCREEN (PRIORIDAD ALTA) ---
+        // Definimos esto AL PRINCIPIO para asegurar que se ejecute incluso si hay errores de red abajo
+        function ocultarSplash() {
+            const splash = document.getElementById('splash-screen');
+            if (!splash || splash.style.display === 'none') return;
+
+            // Intentar reproducir audio
+            const audio = document.getElementById('splash-audio');
+            if (audio) audio.play().catch(() => {}); 
+
+            splash.style.opacity = '0';
+            setTimeout(() => { splash.style.display = 'none'; }, 500);
+        }
+
+        // 1. Método normal: Esperar a que cargue todo + 2 segundos
+        window.addEventListener('load', () => setTimeout(ocultarSplash, 2000));
+
+        // 2. Método de seguridad: Forzar cierre a los 7 segundos si la carga falla (Internet lento)
+        setTimeout(ocultarSplash, 7000);
+
         // --- CONFIGURACIÓN SUPABASE ---
         // REEMPLAZA ESTOS VALORES CON LOS DE TU PROYECTO SUPABASE
         const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co'; // <--- Pon tu URL real
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY'; // <--- Pon tu KEY real
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Verificación robusta: Si no cargó el script de CDN (Offline), usamos un objeto vacío para no romper la app
+        let supabase;
+        if (window.supabase) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else {
+            console.error("Supabase no cargó (Offline).");
+            // Mock para evitar crash inmediato
+            const mockChain = { select: () => mockChain, eq: () => mockChain, order: () => Promise.resolve({ error: { message: "Sin conexión" }, data: [] }) };
+            supabase = { from: () => mockChain, channel: () => ({ on: () => ({ on: () => ({ subscribe: () => {} }) }) }) };
+        }
 
         // Mapa de Iconos
         const iconos = { 'Delfín': '🐬', 'Ballena': '🐋', 'Carnero': '🐏', 'Toro': '🐂', 'Ciempiés': '🐛', 'Alacrán': '🦂', 'León': '🦁', 'Rana': '🐸', 'Perico': '🦜', 'Ratón': '🐁', 'Águila': '🦅', 'Tigre': '🐅', 'Gato': '🐈', 'Caballo': '🐎', 'Mono': '🐒', 'Paloma': '🕊️', 'Zorro': '🦊', 'Oso': '🐻', 'Pavo': '🦃', 'Burro': '🐐', 'Chivo': '🐐', 'Cochino': '🐖', 'Gallo': '🐓', 'Camello': '🐪', 'Zebra': '🦓', 'Iguana': '🦎', 'Gallina': '🐔', 'Vaca': '🐄', 'Perro': '🐕', 'Zamuro': '🦅', 'Elefante': '🐘', 'Caimán': '🐊', 'Lapa': '🦦', 'Ardilla': '🐿️', 'Pescado': '🐟', 'Venado': '🦌', 'Jirafa': '🦒', 'Culebra': '🐍' };
@@ -269,20 +298,6 @@
             btnInstall.style.display = 'none';
         });
 
-        // --- SPLASH SCREEN LOGIC ---
-        window.addEventListener('load', () => {
-            // Reproducir sonido de inicio
-            const audio = document.getElementById('splash-audio');
-            if (audio) audio.play().catch(() => {}); // Ignorar si el navegador bloquea autoplay
-
-            setTimeout(() => {
-                const splash = document.getElementById('splash-screen');
-                splash.style.opacity = '0';
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                }, 500);
-            }, 2000); // Mostrar por 2 segundos
-        });
     </script>
 </body>
 </html>
