@@ -7,7 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PWA: Manifiesto y Metaetiquetas -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00ffaa">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -46,13 +47,29 @@
         .loading { text-align: center; padding: 40px; color: #666; }
         .loading i { font-size: 30px; margin-bottom: 10px; color: var(--primary); }
 
+        /* Splash Screen */
+        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #121212; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s ease-out; }
+        #splash-screen img { width: 100px; height: 100px; margin-bottom: 15px; border-radius: 50%; box-shadow: 0 0 20px rgba(0,255,170,0.2); animation: pulseLogo 2s infinite; }
+        @keyframes pulseLogo { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
+    <!-- SPLASH SCREEN -->
+    <div id="splash-screen">
+        <img src="icon.png" alt="Logo">
+        <h2 style="color: var(--primary); margin: 0; letter-spacing: 2px; font-size: 24px;">LOTTO IA</h2>
+        <p style="color: #666; font-size: 12px; margin-top: 10px;">Inteligencia Artificial</p>
+        <audio id="splash-audio" src="startup.mp3" preload="auto"></audio>
+    </div>
+
     <div class="header">
         <h1><i class="fas fa-robot"></i> Lotto IA</h1>
+        <button id="btn-install" style="display: none; position: absolute; right: 15px; top: 12px; background: var(--primary); border: none; color: #000; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 11px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,170,0.4);">
+            <i class="fas fa-download"></i> INSTALAR
+        </button>
     </div>
 
     <!-- PESTAÑA 1: RESULTADOS -->
@@ -225,6 +242,47 @@
                 .then(reg => console.log('Service Worker registrado:', reg.scope))
                 .catch(err => console.log('Error SW:', err));
         }
+
+        // --- PWA INSTALLATION ---
+        let deferredPrompt;
+        const btnInstall = document.getElementById('btn-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevenir que Chrome muestre el prompt automáticamente
+            e.preventDefault();
+            // Guardar el evento para dispararlo después
+            deferredPrompt = e;
+            // Mostrar el botón
+            btnInstall.style.display = 'block';
+        });
+
+        btnInstall.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                btnInstall.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            btnInstall.style.display = 'none';
+        });
+
+        // --- SPLASH SCREEN LOGIC ---
+        window.addEventListener('load', () => {
+            // Reproducir sonido de inicio
+            const audio = document.getElementById('splash-audio');
+            if (audio) audio.play().catch(() => {}); // Ignorar si el navegador bloquea autoplay
+
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 500);
+            }, 2000); // Mostrar por 2 segundos
+        });
     </script>
 </body>
 </html>

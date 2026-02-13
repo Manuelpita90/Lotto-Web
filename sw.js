@@ -1,9 +1,10 @@
-const CACHE_NAME = 'lotto-ia-v2';
+const CACHE_NAME = 'lotto-ia-v3';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icon.png',
+  './startup.mp3',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
