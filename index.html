@@ -337,30 +337,46 @@
         // 2. Método de seguridad: Forzar cierre a los 7 segundos si la carga falla (Internet lento)
         setTimeout(ocultarSplash, 7000);
 
-        // --- CONFIGURACIÓN SUPABASE ---
-        // REEMPLAZA ESTOS VALORES CON LOS DE TU PROYECTO SUPABASE
-        const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co'; // <--- Pon tu URL real
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY'; // <--- Pon tu KEY real
+        // --- CONFIGURACIÓN Y ARRANQUE ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Esperar un poco a que el script defer cargue si aún no está
+            if (!window.supabase) {
+                console.log("Esperando a Supabase...");
+                await new Promise(r => setTimeout(r, 500));
+            }
 
-        // Verificación robusta: Si no cargó el script de CDN (Offline), usamos un objeto vacío para no romper la app
-        let supabase;
-        if (window.supabase) {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        } else {
-            console.error("Supabase no cargó (Offline).");
-            // Mock para evitar crash inmediato
-            const mockChain = { select: () => mockChain, eq: () => mockChain, order: () => Promise.resolve({ error: { message: "Sin conexión" }, data: [] }) };
-            supabase = { from: () => mockChain, channel: () => ({ on: () => ({ on: () => ({ subscribe: () => { } }) }) }) };
+            const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY';
+
+            let supabase;
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log("Supabase inicializado.");
+                // Iniciar la app solo si hay supabase
+                window.supabaseInstance = supabase; // Guardar referencia global
+                iniciarApp();
+            } else {
+                console.error("Supabase no cargó (Offline o bloqueo).");
+                mostrarErrorGlobal();
+            }
+        });
+
+        function mostrarErrorGlobal() {
+            document.getElementById('lista-resultados').innerHTML = '<div style="color:red; padding:20px;">Error: No se pudo conectar al servidor.</div>';
+            document.getElementById('lista-predicciones').innerHTML = '<div style="color:red; padding:20px;">Sin conexión.</div>';
         }
+
+        // --- FUNCIONES (Definidas fuera para ser accesibles, pero usan window.supabaseInstance) ---
 
         // Mapa de Iconos
         const iconos = { 'Delfín': '🐬', 'Ballena': '🐋', 'Carnero': '🐏', 'Toro': '🐂', 'Ciempiés': '🐛', 'Alacrán': '🦂', 'León': '🦁', 'Rana': '🐸', 'Perico': '🦜', 'Ratón': '🐁', 'Águila': '🦅', 'Tigre': '🐅', 'Gato': '🐈', 'Caballo': '🐎', 'Mono': '🐒', 'Paloma': '🕊️', 'Zorro': '🦊', 'Oso': '🐻', 'Pavo': '🦃', 'Burro': '🐐', 'Chivo': '🐐', 'Cochino': '🐖', 'Gallo': '🐓', 'Camello': '🐪', 'Zebra': '🦓', 'Iguana': '🦎', 'Gallina': '🐔', 'Vaca': '🐄', 'Perro': '🐕', 'Zamuro': '🦅', 'Elefante': '🐘', 'Caimán': '🐊', 'Lapa': '🦦', 'Ardilla': '🐿️', 'Pescado': '🐟', 'Venado': '🦌', 'Jirafa': '🦒', 'Culebra': '🐍' };
 
-        // --- FUNCIONES ---
-
         async function cargarResultados() {
-            const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const supabase = window.supabaseInstance;
+            if (!supabase) return;
 
+            const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            // ... resto de la logica igual que antes, usando la variable local supabase ...
             const { data, error } = await supabase
                 .from('sorteos')
                 .select('*')
@@ -399,6 +415,9 @@
         }
 
         async function cargarPredicciones() {
+            const supabase = window.supabaseInstance;
+            if (!supabase) return;
+
             const container = document.getElementById('lista-predicciones');
 
             // 1. Obtener historial reciente para análisis (últimos 200)
@@ -480,25 +499,25 @@
             container.innerHTML = html;
         }
 
-        // --- REALTIME SUBSCRIPTIONS ---
-        const channel = supabase.channel('cambios-lotto')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'sorteos' },
-                (payload) => {
-                    console.log('Cambio en sorteos:', payload);
-                    cargarResultados();
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'predicciones' },
-                (payload) => {
-                    console.log('Cambio en predicciones:', payload);
-                    cargarPredicciones();
-                }
-            )
-            .subscribe();
+        function iniciarApp() {
+            // Iniciar
+            cargarResultados();
+            cargarPredicciones();
+
+            // --- REALTIME SUBSCRIPTIONS ---
+            if (window.supabaseInstance) {
+                const channel = window.supabaseInstance.channel('cambios-lotto')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'sorteos' },
+                        (payload) => {
+                            console.log('Cambio en sorteos:', payload);
+                            cargarResultados();
+                        }
+                    )
+                    .subscribe();
+            }
+        }
 
         // --- UI LOGIC ---
         window.cambiarTab = function (tabId, element) {
