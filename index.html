@@ -444,31 +444,50 @@
                 return;
             }
 
-            // 4. Renderizar
+            // Renderizar por Categorías
             let html = '';
-            preds.forEach((p, index) => {
-                const icono = iconos[p.animal] || '🔮';
-                const ranking = index + 1;
-                html += `
-                    <div class="card pred-card">
-                        <div style="width:100%">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="display:flex; align-items:center;">
-                                    <div class="rank-badge">#${ranking}</div>
-                                    <div class="animal-icon" style="font-size:24px; margin-right:10px;">${icono}</div>
-                                    <div class="info">
-                                        <h3>${p.numero} - ${p.animal}</h3>
+
+            // Agrupar (Asumiendo que backend manda ranking 1-6)
+            /*
+                1-2: Calientes
+                3-4: Fijos
+                5-6: Explosivos
+            */
+
+            const groups = {
+                '🔥 Calientes': data.filter(p => p.ranking <= 2),
+                '🔒 Fijos': data.filter(p => p.ranking >= 3 && p.ranking <= 4),
+                '💣 Explosivos': data.filter(p => p.ranking >= 5)
+            };
+
+            for (const [titulo, items] of Object.entries(groups)) {
+                if (items.length === 0) continue;
+
+                html += `<h3 style="margin: 15px 0 5px; font-size: 14px; color: #888; border-bottom: 1px solid #333; padding-bottom: 5px;">${titulo}</h3>`;
+
+                items.forEach((p) => {
+                    const icono = iconos[p.animal] || '🔮';
+                    html += `
+                        <div class="card pred-card">
+                            <div style="width:100%">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="display:flex; align-items:center;">
+                                        <div class="animal-icon" style="font-size:24px; margin-right:10px;">${icono}</div>
+                                        <div class="info">
+                                            <h3>${p.numero} - ${p.animal}</h3>
+                                        </div>
                                     </div>
+                                    <div style="color:var(--primary); font-weight:bold;">${p.probabilidad}%</div>
                                 </div>
-                                <div style="color:var(--primary); font-weight:bold;">${p.probabilidad}%</div>
-                            </div>
-                            <div class="prob-bar">
-                                <div class="prob-fill" style="width: ${p.probabilidad}%"></div>
+                                <div class="prob-bar">
+                                    <div class="prob-fill" style="width: ${p.probabilidad}%"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
+
             container.innerHTML = html;
         }
 

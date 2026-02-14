@@ -160,35 +160,48 @@ function renderizarResultados(lista) {
     ultimasPrediccionesNombres = lista.map(item => item.animal);
     actualizarHighlightsHoy(); // Actualizar visualmente la lista de hoy
 
-    lista.forEach(item => {
-        const icono = iconosAnimales[item.animal] || '🔮';
+    // Agrupar por categorías (Ranking 1-6)
+    const groups = {
+        '🔥 Calientes': lista.filter(p => p.ranking <= 2),
+        '🔒 Fijos': lista.filter(p => p.ranking >= 3 && p.ranking <= 4),
+        '💣 Explosivos': lista.filter(p => p.ranking >= 5)
+    };
 
-        let etiquetaTexto = "Probabilidad Baja";
-        const prob = parseFloat(item.probabilidad);
-        if (prob > 50) etiquetaTexto = "¡Muy Alta!";
-        else if (prob > 20) etiquetaTexto = "Probabilidad Alta";
-        else if (prob > 10) etiquetaTexto = "Posible Sorpresa";
+    for (const [titulo, items] of Object.entries(groups)) {
+        if (items.length === 0) continue;
 
-        // Badge para horario
-        let badgeHorario = '';
-        if (item.esFuertePorHorario) {
-            badgeHorario = `<i class="fas fa-clock" style="color: #ffca28; margin-left: 6px;" title="Fuerte por coincidencia de hora"></i>`;
-        }
+        resultsArea.innerHTML += `<h3 style="margin: 15px 0 5px; font-size: 14px; text-align: left; opacity: 0.7; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">${titulo}</h3>`;
 
-        const html = `
-            <div class="prediction-card">
-                <div class="animal-info">
-                    <span class="animal-icon">${icono}</span>
-                    <div>
-                        <span class="animal-name">${item.numero} - ${item.animal} ${badgeHorario}</span>
-                        <span class="probability">${etiquetaTexto} (Salió ${item.veces} veces)</span>
+        items.forEach(item => {
+            const icono = iconosAnimales[item.animal] || '🔮';
+
+            let etiquetaTexto = "Probabilidad Baja";
+            const prob = parseFloat(item.probabilidad);
+            if (prob > 85) etiquetaTexto = "¡Muy Alta!";
+            else if (prob > 75) etiquetaTexto = "Probabilidad Alta";
+            else if (prob > 50) etiquetaTexto = "Posible Sorpresa";
+
+            // Badge para horario
+            let badgeHorario = '';
+            if (item.esFuertePorHorario) {
+                badgeHorario = `<i class="fas fa-clock" style="color: #ffca28; margin-left: 6px;" title="Fuerte por coincidencia de hora"></i>`;
+            }
+
+            const html = `
+                <div class="prediction-card">
+                    <div class="animal-info">
+                        <span class="animal-icon">${icono}</span>
+                        <div>
+                            <span class="animal-name">${item.numero} - ${item.animal} ${badgeHorario}</span>
+                            <span class="probability">${etiquetaTexto}</span>
+                        </div>
                     </div>
+                    <div class="percent-badge">${item.probabilidad}%</div>
                 </div>
-                <div class="percent-badge">${item.probabilidad}%</div>
-            </div>
-        `;
-        resultsArea.innerHTML += html;
-    });
+            `;
+            resultsArea.innerHTML += html;
+        });
+    }
 }
 
 // --- 5. EVENTOS ---
@@ -720,13 +733,14 @@ if (!window.api) {
                 if (error) { console.error(error); return []; }
                 if (!data || data.length === 0) return [];
 
-                // Mapear a formato UI
+                // Mapear a formato UI y conservar ranking
                 return data.map(p => ({
                     animal: p.animal,
                     numero: p.numero,
                     probabilidad: p.probabilidad,
-                    veces: 0, // Dato no sincronizado
-                    esFuertePorHorario: false
+                    veces: 0,
+                    esFuertePorHorario: false,
+                    ranking: p.ranking // Importante para agrupar
                 }));
             },
             obtenerEstadisticas: async () => {
