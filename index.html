@@ -11,8 +11,14 @@
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon.png">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <style>
+        @keyframes fadeInButton {
+            to {
+                opacity: 1;
+            }
+        }
+
         :root {
             --bg: #121212;
             --card: #1e1e1e;
@@ -246,7 +252,18 @@
         <h2 style="color: var(--primary); margin: 0; letter-spacing: 2px; font-size: 24px;">LOTTO IA</h2>
         <p style="color: #666; font-size: 12px; margin-top: 10px;">Inteligencia Artificial</p>
         <audio id="splash-audio" src="startup.mp3" preload="auto"></audio>
+        <!-- Botón de emergencia por si JS falla -->
+        <button onclick="document.getElementById('splash-screen').style.display='none'"
+            style="margin-top:20px; padding:10px 20px; background:#333; color:#fff; border:1px solid #555; border-radius:10px; opacity:0; animation:fadeInButton 2s 5s forwards; cursor:pointer;">Entrar</button>
     </div>
+
+    <!-- Fail-safe script -->
+    <script>
+        setTimeout(() => {
+            const s = document.getElementById('splash-screen');
+            if (s) s.style.display = 'none';
+        }, 8000);
+    </script>
 
     <div class="header">
         <h1><i class="fas fa-robot"></i> Lotto IA</h1>
@@ -279,7 +296,8 @@
         <div class="card" style="display: block; text-align: center; padding: 30px;">
             <i class="fas fa-wifi" style="font-size: 40px; color: var(--primary); margin-bottom: 15px;"></i>
             <h3 style="color: #fff;">Sistema Conectado</h3>
-            <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto IA.
+            <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto
+                IA.
             </p>
             <div style="margin-top: 20px; font-size: 12px; color: #555;">Desarrollado por AJP-Logic</div>
         </div>
