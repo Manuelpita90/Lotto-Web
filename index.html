@@ -420,51 +420,24 @@
 
             const container = document.getElementById('lista-predicciones');
 
-            // 1. Obtener historial reciente para análisis (últimos 200)
+            // --- LÓGICA SINCRONIZADA: OBTENER DE TABLA PREDICCIONES (LLENADA POR DESKTOP) ---
             const { data, error } = await supabase
-                .from('sorteos')
+                .from('predicciones')
                 .select('*')
-                .order('id', { ascending: true }) // Importante: Orden ascendente para el algoritmo
-                .limit(200);
+                .order('ranking', { ascending: true }); // Ordenar por ranking (1, 2, 3)
 
-            if (error || !data || data.length < 2) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">Insuficientes datos para predecir.</div>';
+            if (error) {
+                console.error("Error cargando predicciones:", error);
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#ff5555;">Error al cargar.</div>';
                 return;
             }
 
-            // 2. Algoritmo de Predicción (Misma lógica que Desktop)
-            const rows = data;
-            const ultimo = rows[rows.length - 1];
-            const animalB = ultimo.animal;
-            const horaB = ultimo.hora;
-            let conteo = {};
-            let total = 0;
-
-            for (let i = 0; i < rows.length - 1; i++) {
-                if (rows[i].animal === animalB) {
-                    const sig = rows[i + 1];
-                    const key = sig.animal + "|" + sig.numero;
-                    const isTimeMatch = (rows[i].hora === horaB);
-                    const peso = isTimeMatch ? 3 : 1;
-                    if (!conteo[key]) conteo[key] = { score: 0, count: 0 };
-                    conteo[key].score += peso;
-                    conteo[key].count += 1;
-                    total += peso;
-                }
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-magic" style="font-size:30px; margin-bottom:10px;"></i><br>Esperando que la App de Escritorio genere predicciones...</div>';
+                return;
             }
 
-            // 3. Formatear y Ordenar
-            let preds = Object.keys(conteo).map(key => {
-                const [n, num] = key.split("|");
-                return {
-                    animal: n, numero: num,
-                    probabilidad: ((conteo[key].score / total) * 100).toFixed(1),
-                    ranking: 0 // Se asignará después
-                };
-            });
-
-            preds.sort((a, b) => b.probabilidad - a.probabilidad);
-            preds = preds.slice(0, 3); // Top 3
+            const preds = data;
 
             if (preds.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">Sin patrones claros aún.</div>';
