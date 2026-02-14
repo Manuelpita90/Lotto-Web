@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lotto-ia-v6';
+const CACHE_NAME = 'lotto-ia-v7';
 const DATA_CACHE_NAME = 'lotto-data-v1'; // Nuevo caché específico para datos
 const urlsToCache = [
   './',

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -12,49 +13,231 @@
     <link rel="apple-touch-icon" href="icon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --primary: #00ffaa; --text: #fff; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding-bottom: 80px; }
-        
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --primary: #00ffaa;
+            --text: #fff;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding-bottom: 80px;
+        }
+
         /* Header */
-        .header { background: rgba(0,0,0,0.9); padding: 15px; text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
-        .header h1 { margin: 0; font-size: 18px; color: var(--primary); letter-spacing: 1px; text-transform: uppercase; }
-        
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
         /* Tabs */
-        .tab-content { display: none; padding: 15px; animation: fadeIn 0.3s; }
-        .tab-content.active { display: block; }
-        
+        .tab-content {
+            display: none;
+            padding: 15px;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         /* Cards */
-        .card { background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #333; }
-        .animal-icon { font-size: 32px; margin-right: 15px; width: 40px; text-align: center; }
-        .info h3 { margin: 0 0 4px 0; font-size: 17px; font-weight: 700; }
-        .info p { margin: 0; color: #888; font-size: 13px; }
-        .badge { background: rgba(0, 255, 170, 0.1); color: var(--primary); padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; border: 1px solid rgba(0, 255, 170, 0.2); }
-        
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+
+        .animal-icon {
+            font-size: 32px;
+            margin-right: 15px;
+            width: 40px;
+            text-align: center;
+        }
+
+        .info h3 {
+            margin: 0 0 4px 0;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .info p {
+            margin: 0;
+            color: #888;
+            font-size: 13px;
+        }
+
+        .badge {
+            background: rgba(0, 255, 170, 0.1);
+            color: var(--primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+            border: 1px solid rgba(0, 255, 170, 0.2);
+        }
+
         /* Predicciones */
-        .pred-card { border: 1px solid rgba(0, 255, 170, 0.3); background: linear-gradient(145deg, #1e1e1e, #252525); }
-        .prob-bar { height: 6px; background: #333; border-radius: 3px; margin-top: 10px; overflow: hidden; }
-        .prob-fill { height: 100%; background: linear-gradient(90deg, #00ffaa, #00aaff); border-radius: 3px; transition: width 1s ease-out; }
-        .rank-badge { background: #333; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; }
+        .pred-card {
+            border: 1px solid rgba(0, 255, 170, 0.3);
+            background: linear-gradient(145deg, #1e1e1e, #252525);
+        }
+
+        .prob-bar {
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .prob-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffaa, #00aaff);
+            border-radius: 3px;
+            transition: width 1s ease-out;
+        }
+
+        .rank-badge {
+            background: #333;
+            color: #fff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
 
         /* Bottom Nav */
-        .nav { position: fixed; bottom: 0; width: 100%; background: #000; display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #333; z-index: 100; }
-        .nav-item { color: #666; text-align: center; font-size: 11px; cursor: pointer; flex: 1; transition: color 0.2s; }
-        .nav-item i { font-size: 22px; margin-bottom: 5px; display: block; }
-        .nav-item.active { color: var(--primary); }
-        .nav-item.active i { transform: scale(1.1); }
+        .nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #000;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            border-top: 1px solid #333;
+            z-index: 100;
+        }
+
+        .nav-item {
+            color: #666;
+            text-align: center;
+            font-size: 11px;
+            cursor: pointer;
+            flex: 1;
+            transition: color 0.2s;
+        }
+
+        .nav-item i {
+            font-size: 22px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-item.active i {
+            transform: scale(1.1);
+        }
 
         /* Loading */
-        .loading { text-align: center; padding: 40px; color: #666; }
-        .loading i { font-size: 30px; margin-bottom: 10px; color: var(--primary); }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading i {
+            font-size: 30px;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
 
         /* Splash Screen */
-        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #121212; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s ease-out; }
-        #splash-screen img { width: 100px; height: 100px; margin-bottom: 15px; border-radius: 50%; box-shadow: 0 0 20px rgba(0,255,170,0.2); animation: pulseLogo 2s infinite; }
-        @keyframes pulseLogo { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #121212;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #splash-screen img {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 15px;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(0, 255, 170, 0.2);
+            animation: pulseLogo 2s infinite;
+        }
+
+        @keyframes pulseLogo {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
+
 <body>
 
     <!-- SPLASH SCREEN -->
@@ -67,14 +250,16 @@
 
     <div class="header">
         <h1><i class="fas fa-robot"></i> Lotto IA</h1>
-        <button id="btn-install" style="display: none; position: absolute; right: 15px; top: 12px; background: var(--primary); border: none; color: #000; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 11px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,170,0.4);">
+        <button id="btn-install"
+            style="display: none; position: absolute; right: 15px; top: 12px; background: var(--primary); border: none; color: #000; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 11px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,170,0.4);">
             <i class="fas fa-download"></i> INSTALAR
         </button>
     </div>
 
     <!-- PESTAÑA 1: RESULTADOS -->
     <div id="tab-resultados" class="tab-content active">
-        <h2 style="font-size: 13px; color: #666; margin: 10px 0 15px; text-transform: uppercase; letter-spacing: 1px;">Resultados de Hoy</h2>
+        <h2 style="font-size: 13px; color: #666; margin: 10px 0 15px; text-transform: uppercase; letter-spacing: 1px;">
+            Resultados de Hoy</h2>
         <div id="lista-resultados">
             <div class="loading"><i class="fas fa-circle-notch fa-spin"></i><br>Cargando resultados...</div>
         </div>
@@ -82,7 +267,8 @@
 
     <!-- PESTAÑA 2: PRONÓSTICOS -->
     <div id="tab-pronosticos" class="tab-content">
-        <h2 style="font-size: 13px; color: #666; margin: 10px 0 15px; text-transform: uppercase; letter-spacing: 1px;">Sugerencias IA (Próximo Sorteo)</h2>
+        <h2 style="font-size: 13px; color: #666; margin: 10px 0 15px; text-transform: uppercase; letter-spacing: 1px;">
+            Sugerencias IA (Próximo Sorteo)</h2>
         <div id="lista-predicciones">
             <div class="loading"><i class="fas fa-brain"></i><br>Esperando análisis...</div>
         </div>
@@ -93,7 +279,8 @@
         <div class="card" style="display: block; text-align: center; padding: 30px;">
             <i class="fas fa-wifi" style="font-size: 40px; color: var(--primary); margin-bottom: 15px;"></i>
             <h3 style="color: #fff;">Sistema Conectado</h3>
-            <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto IA.</p>
+            <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto IA.
+            </p>
             <div style="margin-top: 20px; font-size: 12px; color: #555;">Desarrollado por AJP-Logic</div>
         </div>
     </div>
@@ -120,7 +307,7 @@
 
             // Intentar reproducir audio
             const audio = document.getElementById('splash-audio');
-            if (audio) audio.play().catch(() => {}); 
+            if (audio) audio.play().catch(() => { });
 
             splash.style.opacity = '0';
             setTimeout(() => { splash.style.display = 'none'; }, 500);
@@ -145,7 +332,7 @@
             console.error("Supabase no cargó (Offline).");
             // Mock para evitar crash inmediato
             const mockChain = { select: () => mockChain, eq: () => mockChain, order: () => Promise.resolve({ error: { message: "Sin conexión" }, data: [] }) };
-            supabase = { from: () => mockChain, channel: () => ({ on: () => ({ on: () => ({ subscribe: () => {} }) }) }) };
+            supabase = { from: () => mockChain, channel: () => ({ on: () => ({ on: () => ({ subscribe: () => { } }) }) }) };
         }
 
         // Mapa de Iconos
@@ -155,7 +342,7 @@
 
         async function cargarResultados() {
             const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-            
+
             const { data, error } = await supabase
                 .from('sorteos')
                 .select('*')
@@ -163,7 +350,7 @@
                 .order('id', { ascending: false });
 
             const container = document.getElementById('lista-resultados');
-            
+
             if (error) {
                 container.innerHTML = `<div style="text-align:center; padding:20px; color:#ff5555;">Error de conexión</div>`;
                 return;
@@ -194,27 +381,70 @@
         }
 
         async function cargarPredicciones() {
-            const { data, error } = await supabase
-                .from('predicciones')
-                .select('*')
-                .order('ranking', { ascending: true });
-
             const container = document.getElementById('lista-predicciones');
 
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">La IA está analizando datos...</div>';
+            // 1. Obtener historial reciente para análisis (últimos 200)
+            const { data, error } = await supabase
+                .from('sorteos')
+                .select('*')
+                .order('id', { ascending: true }) // Importante: Orden ascendente para el algoritmo
+                .limit(200);
+
+            if (error || !data || data.length < 2) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">Insuficientes datos para predecir.</div>';
                 return;
             }
 
+            // 2. Algoritmo de Predicción (Misma lógica que Desktop)
+            const rows = data;
+            const ultimo = rows[rows.length - 1];
+            const animalB = ultimo.animal;
+            const horaB = ultimo.hora;
+            let conteo = {};
+            let total = 0;
+
+            for (let i = 0; i < rows.length - 1; i++) {
+                if (rows[i].animal === animalB) {
+                    const sig = rows[i + 1];
+                    const key = sig.animal + "|" + sig.numero;
+                    const isTimeMatch = (rows[i].hora === horaB);
+                    const peso = isTimeMatch ? 3 : 1;
+                    if (!conteo[key]) conteo[key] = { score: 0, count: 0 };
+                    conteo[key].score += peso;
+                    conteo[key].count += 1;
+                    total += peso;
+                }
+            }
+
+            // 3. Formatear y Ordenar
+            let preds = Object.keys(conteo).map(key => {
+                const [n, num] = key.split("|");
+                return {
+                    animal: n, numero: num,
+                    probabilidad: ((conteo[key].score / total) * 100).toFixed(1),
+                    ranking: 0 // Se asignará después
+                };
+            });
+
+            preds.sort((a, b) => b.probabilidad - a.probabilidad);
+            preds = preds.slice(0, 3); // Top 3
+
+            if (preds.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">Sin patrones claros aún.</div>';
+                return;
+            }
+
+            // 4. Renderizar
             let html = '';
-            data.forEach(p => {
+            preds.forEach((p, index) => {
                 const icono = iconos[p.animal] || '🔮';
+                const ranking = index + 1;
                 html += `
                     <div class="card pred-card">
                         <div style="width:100%">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <div style="display:flex; align-items:center;">
-                                    <div class="rank-badge">#${p.ranking}</div>
+                                    <div class="rank-badge">#${ranking}</div>
                                     <div class="animal-icon" style="font-size:24px; margin-right:10px;">${icono}</div>
                                     <div class="info">
                                         <h3>${p.numero} - ${p.animal}</h3>
@@ -253,10 +483,10 @@
             .subscribe();
 
         // --- UI LOGIC ---
-        window.cambiarTab = function(tabId, element) {
+        window.cambiarTab = function (tabId, element) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            
+
             document.getElementById('tab-' + tabId).classList.add('active');
             element.classList.add('active');
         }
@@ -300,4 +530,5 @@
 
     </script>
 </body>
+
 </html>
