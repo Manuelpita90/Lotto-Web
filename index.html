@@ -488,6 +488,13 @@
             <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto
                 IA.
             </p>
+            
+            <!-- NUEVO: Estadísticas de la BD -->
+            <div id="db-stats" style="margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 13px;">
+                <div style="margin-bottom: 5px;"><i class="fas fa-database"></i> Registros: <b id="total-registros" style="color: var(--primary);">...</b></div>
+                <div><i class="fas fa-clock"></i> Último: <span id="ultimo-sorteo-info">...</span></div>
+            </div>
+
             <button onclick="probarSonido()" style="margin-top: 20px; padding: 10px 20px; background: #ff9800; border: none; border-radius: 20px; color: white; font-weight: bold; cursor: pointer;">
                 <i class="fas fa-volume-up"></i> Probar Sonido
             </button>
@@ -1021,21 +1028,87 @@
                 .catch(e => alert("Error de audio: " + e.message + ". Asegúrate de haber interactuado con la página primero."));
         }
 
+        // --- NUEVO: Enviar Notificación Visual al Sistema ---
+        async function enviarNotificacionSistema(dato) {
+            if (!dato) return;
+            const active = JSON.parse(localStorage.getItem('lotto_notif_active')) ?? true;
+            if (!active) return;
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const title = `¡Salió el ${dato.animal}!`;
+                const options = {
+                    body: `${dato.hora}: ${dato.numero} - ${dato.animal}`,
+                    icon: 'icon.png',
+                    badge: 'icon.png',
+                    vibrate: [200, 100, 200],
+                    tag: 'lotto-result' // Reemplaza notificaciones viejas para no llenar la barra
+                };
+
+                // Usar Service Worker si está disponible (Mejor para móviles)
+                if ('serviceWorker' in navigator) {
+                    const reg = await navigator.serviceWorker.ready;
+                    reg.showNotification(title, options);
+                } else {
+                    new Notification(title, options);
+                }
+            }
+        }
+
+        async function cargarInfoBD() {
+            const elTotal = document.getElementById('total-registros');
+            const elUltimo = document.getElementById('ultimo-sorteo-info');
+
+            if (window.api) {
+                try {
+                    // 1. Contar registros
+                    const countRes = await window.api.contarRegistros();
+                    if (elTotal) elTotal.innerText = countRes.count;
+
+                    // 2. Último sorteo
+                    const lastRes = await window.api.ultimoSorteo();
+                    if (elUltimo && lastRes) elUltimo.innerText = `${lastRes.fecha} ${lastRes.hora}`;
+                } catch (e) { console.error("Error info BD:", e); }
+            }
+        }
+
         function iniciarApp() {
             // Iniciar
             cargarResultados();
             cargarPredicciones();
             cargarEstadisticas();
+            cargarInfoBD(); // Cargar info de la BD
 
             // --- REALTIME SUBSCRIPTIONS ---
             if (window.supabaseInstance) {
+                // Limpiar canales previos para evitar duplicados
+                window.supabaseInstance.removeAllChannels();
+
                 const channel = window.supabaseInstance.channel('cambios-lotto')
                     .on(
                         'postgres_changes',
                         { event: '*', schema: 'public', table: 'sorteos' },
                         (payload) => {
-                            console.log('Cambio en sorteos:', payload);
+                            console.log('🔔 Nuevo resultado detectado:', payload);
                             cargarResultados();
+                            cargarInfoBD();
+                            // Disparar notificación visual si es un nuevo registro
+                            if (payload.eventType === 'INSERT') {
+                                enviarNotificacionSistema(payload.new);
+                            }
+                        }
+                    )
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'predicciones' },
+                        (payload) => {
+                            cargarPredicciones();
+                        }
+                    )
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'estadisticas' },
+                        (payload) => {
+                            cargarEstadisticas();
                         }
                     ).subscribe((status) => {
                         const indicator = document.getElementById('realtime-indicator');

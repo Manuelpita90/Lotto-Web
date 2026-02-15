@@ -421,6 +421,10 @@ if (btnBell) {
         notificacionesActivas = !notificacionesActivas;
         localStorage.setItem('lotto_notif_active', notificacionesActivas);
         updateBellUI();
+        // NUEVO: Pedir permiso al sistema operativo si se activan
+        if (notificacionesActivas && 'Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
     });
     updateBellUI();
 }
