@@ -701,3 +701,37 @@ hr {
     margin-top: 20px;
     font-size: 13px;
 }
+
+/* --- FAB BUTTON (Móvil) --- */
+.fab-btn {
+    position: fixed;
+    bottom: 80px; /* Encima de la barra de navegación */
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #000;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0, 255, 170, 0.4);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 990; /* Debajo de modales (1000) pero encima de contenido */
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.fab-btn:active { transform: scale(0.9); }
+
+@keyframes popIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Ocultar en pantallas grandes si se desea */
+@media (min-width: 768px) {
+    .fab-btn { display: none; }
+}

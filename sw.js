@@ -1,12 +1,10 @@
-const CACHE_NAME = 'lotto-ia-v33';
+const CACHE_NAME = 'lotto-ia-v44';
 const DATA_CACHE_NAME = 'lotto-data-v1'; // Nuevo caché específico para datos
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icon.png',
-  './style.css',
-  './script.js',
   './sounds/win.mp3',
   './sounds/notify.mp3',
   './startup.mp3',
@@ -95,16 +93,21 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  
+  // Obtener la URL destino (desde data o por defecto a la raíz)
+  const urlToOpen = new URL(event.notification.data?.url || './', self.location.origin).href;
+
   // Al hacer clic, abrir la ventana de la app o enfocarla si ya está abierta
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       for (const client of clientList) {
-        if (client.url.includes('index.html') && 'focus' in client) {
+        // Si ya hay una pestaña abierta en el mismo origen, enfocarla
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('./index.html');
+        return clients.openWindow(urlToOpen);
       }
     })
   );

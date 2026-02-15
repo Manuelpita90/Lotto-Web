@@ -396,6 +396,7 @@
         }
         .status-dot.connected { background-color: #00ffaa; box-shadow: 0 0 8px #00ffaa; }
         .status-dot.disconnected { background-color: #ff5555; box-shadow: 0 0 8px #ff5555; }
+        .status-dot.connecting { background-color: #ffca28; box-shadow: 0 0 8px #ffca28; }
 
         /* --- SKELETON LOADING --- */
         .skeleton {
@@ -416,6 +417,65 @@
         @keyframes skeleton-loading {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
+        }
+
+        /* --- FAB BUTTON (Moderno) --- */
+        .fab-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 25px;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #00bcd4);
+            color: #00332a;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 20px rgba(0, 255, 170, 0.3), inset 0 0 10px rgba(255,255,255,0.2);
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 990;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .fab-btn:active {
+            transform: scale(0.9) rotate(45deg);
+            box-shadow: 0 4px 10px rgba(0, 255, 170, 0.2);
+        }
+
+        /* --- NUEVO: Estilo para predicción acertada --- */
+        .pred-match {
+            border: 2px solid var(--primary) !important;
+            box-shadow: 0 0 15px rgba(0, 255, 170, 0.4);
+            background: linear-gradient(145deg, rgba(0, 255, 170, 0.15), #252525) !important;
+        }
+        .match-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            color: var(--primary);
+            font-size: 18px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: none; /* Oculto por defecto */
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        /* --- NUEVO: Animación Pop para el contador --- */
+        @keyframes popCounter {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.5); text-shadow: 0 0 10px #fff; color: #fff; }
+            100% { transform: scale(1); }
+        }
+        .pop-anim {
+            animation: popCounter 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
     </style>
 </head>
@@ -447,6 +507,9 @@
 
     <div class="header">
         <h1><i class="fas fa-robot"></i> Lotto IA <span id="realtime-indicator" class="status-dot" title="Estado de conexión"></span></h1>
+        <div id="ai-hits-counter" style="font-size: 12px; color: var(--primary); margin-top: 5px; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,170,0.3);">
+            <i class="fas fa-crosshairs"></i> Aciertos IA: 0
+        </div>
         <button id="btn-install"
             style="display: none; position: absolute; right: 15px; top: 12px; background: var(--primary); border: none; color: #000; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 11px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,170,0.4);">
             <i class="fas fa-download"></i> INSTALAR
@@ -620,8 +683,20 @@
                                 return data;
                             },
                             ultimoSorteo: async () => {
-                                const { data, error } = await supabase.from('sorteos').select('*').order('fecha', { ascending: false }).order('hora', { ascending: false }).limit(1);
-                                return (data && data.length > 0) ? data[0] : null;
+                                // 1. Obtener fecha más reciente
+                                const { data: dates } = await supabase.from('sorteos').select('fecha').order('fecha', { ascending: false }).limit(1);
+                                if (!dates || dates.length === 0) return null;
+                                const lastDate = dates[0].fecha;
+
+                                // 2. Obtener sorteos de esa fecha
+                                const { data } = await supabase.from('sorteos').select('*').eq('fecha', lastDate);
+                                if (!data || data.length === 0) return null;
+
+                                // 3. Ordenar por hora (formato 12h) correctamente
+                                data.sort((a, b) => {
+                                    return new Date(`2000/01/01 ${b.hora}`) - new Date(`2000/01/01 ${a.hora}`);
+                                });
+                                return data[0];
                             },
                             contarRegistros: async () => {
                                 const { count } = await supabase.from('sorteos').select('*', { count: 'exact', head: true });
@@ -647,7 +722,7 @@
                             },
                             sincronizarWeb: async () => "Sincronización solo disponible en Escritorio.",
                             obtenerHistorialSync: async () => [],
-                            obtenerVersion: async () => "Web 1.0.0",
+                            obtenerVersion: async () => "Web v37",
                             actualizarRecordatorios: async () => { }
                         };
                         console.log("✅ API Web inyectada exitosamente.");
@@ -680,6 +755,8 @@
         let ultimoConteoResultados = 0;
         let esCargaInicial = true;
         const audioNotificacion = new Audio('sounds/notify.mp3');
+        let resultadosHoyNombres = []; // NUEVO: Lista de animales que salieron hoy
+        let lastAiHits = 0; // NUEVO: Para animación del contador
 
         // Mapa de Iconos
         const iconos = { 'Delfín': '🐬', 'Ballena': '🐋', 'Carnero': '🐏', 'Toro': '🐂', 'Ciempiés': '🐛', 'Alacrán': '🦂', 'León': '🦁', 'Rana': '🐸', 'Perico': '🦜', 'Ratón': '🐁', 'Águila': '🦅', 'Tigre': '🐅', 'Gato': '🐈', 'Caballo': '🐎', 'Mono': '🐒', 'Paloma': '🕊️', 'Zorro': '🦊', 'Oso': '🐻', 'Pavo': '🦃', 'Burro': '🐐', 'Chivo': '🐐', 'Cochino': '🐖', 'Gallo': '🐓', 'Camello': '🐪', 'Zebra': '🦓', 'Iguana': '🦎', 'Gallina': '🐔', 'Vaca': '🐄', 'Perro': '🐕', 'Zamuro': '🦅', 'Elefante': '🐘', 'Caimán': '🐊', 'Lapa': '🦦', 'Ardilla': '🐿️', 'Pescado': '🐟', 'Venado': '🦌', 'Jirafa': '🦒', 'Culebra': '🐍' };
@@ -844,6 +921,10 @@
 
             // DETECTAR NUEVO RESULTADO Y REPRODUCIR SONIDO
             if (data) {
+                // Actualizar lista global para comparaciones
+                resultadosHoyNombres = data.map(r => r.animal);
+                actualizarEstadoPredicciones(); // Refrescar highlights en predicciones
+
                 if (data.length > ultimoConteoResultados && !esCargaInicial) {
                     audioNotificacion.currentTime = 0;
                     audioNotificacion.play().catch(e => console.log("Audio error:", e));
@@ -942,7 +1023,8 @@
                         const icono = iconos[p.animal] || '🔮';
                         const color = obtenerColor(p.animal);
                         html += `
-                        <div class="card pred-card" onclick="abrirHistorialAnimal('${p.animal}')" style="animation-delay: ${i * 0.1}s; border-left: 4px solid ${color}; cursor:pointer;">
+                        <div class="card pred-card" data-animal="${p.animal}" onclick="abrirHistorialAnimal('${p.animal}')" style="animation-delay: ${i * 0.1}s; border-left: 4px solid ${color}; cursor:pointer; position: relative;">
+                            <div class="match-icon"><i class="fas fa-check"></i></div>
                             <div style="width:100%">
                                 <div style="display:flex; justify-content:space-between; align-items:center;">
                                     <div style="display:flex; align-items:center;">
@@ -965,6 +1047,7 @@
             }
             html += '</div>'; // Cerrar grid
             container.innerHTML = html;
+            actualizarEstadoPredicciones(); // Aplicar highlights si ya hay resultados
         }
 
         async function cargarEstadisticas() {
@@ -1041,7 +1124,8 @@
                     icon: 'icon.png',
                     badge: 'icon.png',
                     vibrate: [200, 100, 200],
-                    tag: 'lotto-result' // Reemplaza notificaciones viejas para no llenar la barra
+                    tag: 'lotto-result', // Reemplaza notificaciones viejas para no llenar la barra
+                    data: { url: './' } // URL para abrir al tocar
                 };
 
                 // Usar Service Worker si está disponible (Mejor para móviles)
@@ -1051,6 +1135,60 @@
                 } else {
                     new Notification(title, options);
                 }
+            }
+        }
+
+        // --- NUEVO: Función para resaltar aciertos y reordenar ---
+        function actualizarEstadoPredicciones() {
+            // Procesar en orden inverso para que al mover al inicio se mantenga el ranking relativo
+            const cards = Array.from(document.querySelectorAll('.pred-card')).reverse();
+            
+            // Calcular aciertos reales (Total de veces que un resultado estaba en las predicciones)
+            let aciertosReales = 0;
+            const animalesPredichos = cards.map(c => c.getAttribute('data-animal')).filter(Boolean);
+            
+            resultadosHoyNombres.forEach(resultado => {
+                if (animalesPredichos.some(p => p.localeCompare(resultado, 'es', { sensitivity: 'base' }) === 0)) {
+                    aciertosReales++;
+                }
+            });
+            
+            cards.forEach(card => {
+                const animal = card.getAttribute('data-animal');
+                const icon = card.querySelector('.match-icon');
+                
+                const isMatch = animal && resultadosHoyNombres.some(r => r.localeCompare(animal, 'es', { sensitivity: 'base' }) === 0);
+
+                if (isMatch) {
+                    card.classList.add('pred-match');
+                    if (icon) icon.style.display = 'flex';
+                    
+                    // Mover automáticamente al principio de la lista (debajo del título)
+                    const parent = card.parentElement;
+                    const header = parent.querySelector('h3');
+                    if (parent && header && header.nextElementSibling !== card) {
+                        parent.insertBefore(card, header.nextElementSibling);
+                    }
+                } else {
+                    card.classList.remove('pred-match');
+                    if (icon) icon.style.display = 'none';
+                }
+            });
+
+            // Actualizar contador en el header
+            const elContador = document.getElementById('ai-hits-counter');
+            if (elContador) {
+                // Animación si aumenta y no es la carga inicial
+                if (aciertosReales > lastAiHits && !esCargaInicial) {
+                    elContador.classList.remove('pop-anim');
+                    void elContador.offsetWidth; // Forzar reflow
+                    elContador.classList.add('pop-anim');
+                }
+                lastAiHits = aciertosReales;
+
+                const totalSorteos = resultadosHoyNombres.length;
+                const porcentaje = totalSorteos > 0 ? Math.round((aciertosReales / totalSorteos) * 100) : 0;
+                elContador.innerHTML = `<i class="fas fa-crosshairs"></i> Aciertos IA: ${aciertosReales} <span style="font-size:11px; opacity:0.8; margin-left:5px;">(${porcentaje}%)</span>`;
             }
         }
 
@@ -1071,17 +1209,28 @@
             }
         }
 
-        function iniciarApp() {
+        async function cargarVersion() {
+            const elVer = document.getElementById('app-version');
+            if (window.api && elVer) {
+                try {
+                    const ver = await window.api.obtenerVersion();
+                    elVer.innerText = `Versión ${ver}`;
+                } catch (e) { console.log("Error version:", e); }
+            }
+        }
+
+        async function iniciarApp() {
             // Iniciar
             cargarResultados();
             cargarPredicciones();
             cargarEstadisticas();
             cargarInfoBD(); // Cargar info de la BD
+            cargarVersion(); // Cargar versión de la app
 
             // --- REALTIME SUBSCRIPTIONS ---
             if (window.supabaseInstance) {
                 // Limpiar canales previos para evitar duplicados
-                window.supabaseInstance.removeAllChannels();
+                await window.supabaseInstance.removeAllChannels();
 
                 const channel = window.supabaseInstance.channel('cambios-lotto')
                     .on(
@@ -1116,6 +1265,9 @@
                         if (status === 'SUBSCRIBED') {
                             console.log('🟢 Conectado a actualizaciones en tiempo real');
                             if (indicator) indicator.className = 'status-dot connected';
+                        } else if (status === 'SUBSCRIBING') {
+                            console.log('🟡 Conectando Realtime...');
+                            if (indicator) indicator.className = 'status-dot connecting';
                         } else {
                             console.log('🔴 Estado Realtime:', status);
                             if (indicator) indicator.className = 'status-dot disconnected';
