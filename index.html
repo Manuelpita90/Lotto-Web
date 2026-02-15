@@ -488,6 +488,9 @@
             <p style="margin-top: 10px;">Esta aplicación recibe datos en tiempo real desde el servidor central Lotto
                 IA.
             </p>
+            <button onclick="probarSonido()" style="margin-top: 20px; padding: 10px 20px; background: #ff9800; border: none; border-radius: 20px; color: white; font-weight: bold; cursor: pointer;">
+                <i class="fas fa-volume-up"></i> Probar Sonido
+            </button>
             <div style="margin-top: 20px; font-size: 12px; color: #555;">Desarrollado por AJP-Logic</div>
         </div>
     </div>
@@ -666,6 +669,11 @@
 
         // --- FUNCIONES (Definidas fuera para ser accesibles, pero usan window.supabaseInstance) ---
 
+        // --- VARIABLES GLOBALES PARA SONIDO ---
+        let ultimoConteoResultados = 0;
+        let esCargaInicial = true;
+        const audioNotificacion = new Audio('sounds/notify.mp3');
+
         // Mapa de Iconos
         const iconos = { 'Delfín': '🐬', 'Ballena': '🐋', 'Carnero': '🐏', 'Toro': '🐂', 'Ciempiés': '🐛', 'Alacrán': '🦂', 'León': '🦁', 'Rana': '🐸', 'Perico': '🦜', 'Ratón': '🐁', 'Águila': '🦅', 'Tigre': '🐅', 'Gato': '🐈', 'Caballo': '🐎', 'Mono': '🐒', 'Paloma': '🕊️', 'Zorro': '🦊', 'Oso': '🐻', 'Pavo': '🦃', 'Burro': '🐐', 'Chivo': '🐐', 'Cochino': '🐖', 'Gallo': '🐓', 'Camello': '🐪', 'Zebra': '🦓', 'Iguana': '🦎', 'Gallina': '🐔', 'Vaca': '🐄', 'Perro': '🐕', 'Zamuro': '🦅', 'Elefante': '🐘', 'Caimán': '🐊', 'Lapa': '🦦', 'Ardilla': '🐿️', 'Pescado': '🐟', 'Venado': '🦌', 'Jirafa': '🦒', 'Culebra': '🐍' };
 
@@ -825,6 +833,16 @@
             if (error) {
                 container.innerHTML = `<div style="text-align:center; padding:20px; color:#ff5555;">Error de conexión</div>`;
                 return;
+            }
+
+            // DETECTAR NUEVO RESULTADO Y REPRODUCIR SONIDO
+            if (data) {
+                if (data.length > ultimoConteoResultados && !esCargaInicial) {
+                    audioNotificacion.currentTime = 0;
+                    audioNotificacion.play().catch(e => console.log("Audio error:", e));
+                }
+                ultimoConteoResultados = data.length;
+                esCargaInicial = false;
             }
 
             if (!data || data.length === 0) {
@@ -994,6 +1012,13 @@
             `;
             });
             container.innerHTML = html;
+        }
+
+        function probarSonido() {
+            audioNotificacion.currentTime = 0;
+            audioNotificacion.play()
+                .then(() => console.log("Sonido de prueba reproducido"))
+                .catch(e => alert("Error de audio: " + e.message + ". Asegúrate de haber interactuado con la página primero."));
         }
 
         function iniciarApp() {

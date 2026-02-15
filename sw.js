@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lotto-ia-v23';
+const CACHE_NAME = 'lotto-ia-v30';
 const DATA_CACHE_NAME = 'lotto-data-v1'; // Nuevo caché específico para datos
 const urlsToCache = [
   './',
@@ -7,7 +7,9 @@ const urlsToCache = [
   './icon.png',
   './style.css',
   './script.js',
-  // './startup.mp3', // COMENTADO: Si este archivo no existe en GitHub, la instalación falla. Descomenta solo si lo subiste.
+  './sounds/win.mp3',
+  './sounds/notify.mp3',
+  './startup.mp3',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
