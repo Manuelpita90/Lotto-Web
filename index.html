@@ -402,31 +402,36 @@
 
         // --- CONFIGURACIÓN Y ARRANQUE ---
         document.addEventListener('DOMContentLoaded', async () => {
-            // Esperar un poco a que el script defer cargue si aún no está
-            if (!window.supabase) {
-                console.log("Esperando a Supabase...");
-                await new Promise(r => setTimeout(r, 500));
+            // Esperar activamente a que Supabase cargue (Hasta 5 segundos)
+            let intentos = 0;
+            while (!window.supabase && intentos < 20) {
+                console.log(`Esperando a Supabase... (${intentos + 1}/20)`);
+                await new Promise(r => setTimeout(r, 250)); // Esperar 250ms
+                intentos++;
             }
 
             // MODO WEB (Supabase) vs MODO ESCRITORIO (API)
             if (window.api) {
                 console.log("Modo Escritorio Detectado");
-                // Desktop: No necesitamos inicializar Supabase aquí, el main.js lo maneja.
-                // Pero sí necesitamos las funciones de cargarResultados locales.
                 iniciarApp();
             } else {
                 console.log("Modo Web Detectado");
-                // Solo inicializar Supabase si NO estamos en Desktop (o si queremos doble vía, pero Desktop usa SQLite local)
+
                 const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co';
                 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY';
 
                 if (window.supabase) {
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                    console.log("Supabase inicializado.");
-                    window.supabaseInstance = supabase;
-                    iniciarApp();
+                    try {
+                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                        console.log("Supabase inicializado correctamente.");
+                        window.supabaseInstance = supabase;
+                        iniciarApp();
+                    } catch (err) {
+                        console.error("Error inicializando Supabase:", err);
+                        mostrarErrorGlobal();
+                    }
                 } else {
-                    console.error("Supabase no cargó.");
+                    console.error("Supabase no cargó después de esperar.");
                     mostrarErrorGlobal();
                 }
             }
