@@ -408,8 +408,28 @@
                 await new Promise(r => setTimeout(r, 500));
             }
 
-            const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co';
-            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY';
+            // MODO WEB (Supabase) vs MODO ESCRITORIO (API)
+            if (window.api) {
+                console.log("Modo Escritorio Detectado");
+                // Desktop: No necesitamos inicializar Supabase aquí, el main.js lo maneja.
+                // Pero sí necesitamos las funciones de cargarResultados locales.
+                iniciarApp();
+            } else {
+                console.log("Modo Web Detectado");
+                // Solo inicializar Supabase si NO estamos en Desktop (o si queremos doble vía, pero Desktop usa SQLite local)
+                const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co';
+                const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY';
+
+                if (window.supabase) {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    console.log("Supabase inicializado.");
+                    window.supabaseInstance = supabase;
+                    iniciarApp();
+                } else {
+                    console.error("Supabase no cargó.");
+                    mostrarErrorGlobal();
+                }
+            }
 
             let supabase;
             if (window.supabase) {
@@ -435,18 +455,45 @@
         const iconos = { 'Delfín': '🐬', 'Ballena': '🐋', 'Carnero': '🐏', 'Toro': '🐂', 'Ciempiés': '🐛', 'Alacrán': '🦂', 'León': '🦁', 'Rana': '🐸', 'Perico': '🦜', 'Ratón': '🐁', 'Águila': '🦅', 'Tigre': '🐅', 'Gato': '🐈', 'Caballo': '🐎', 'Mono': '🐒', 'Paloma': '🕊️', 'Zorro': '🦊', 'Oso': '🐻', 'Pavo': '🦃', 'Burro': '🐐', 'Chivo': '🐐', 'Cochino': '🐖', 'Gallo': '🐓', 'Camello': '🐪', 'Zebra': '🦓', 'Iguana': '🦎', 'Gallina': '🐔', 'Vaca': '🐄', 'Perro': '🐕', 'Zamuro': '🦅', 'Elefante': '🐘', 'Caimán': '🐊', 'Lapa': '🦦', 'Ardilla': '🐿️', 'Pescado': '🐟', 'Venado': '🦌', 'Jirafa': '🦒', 'Culebra': '🐍' };
 
         async function cargarResultados() {
-            const supabase = window.supabaseInstance;
-            if (!supabase) return;
-
-            const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-            // Traer todo lo de hoy
-            const { data, error } = await supabase
-                .from('sorteos')
-                .select('*')
-                .eq('fecha', hoy);
-
             const container = document.getElementById('lista-resultados');
+            let data = [];
+            let error = null;
+
+            // 1. INTENTAR MODO ESCRITORIO (Prioridad)
+            if (window.api) {
+                try {
+                    // Desktop ya devuelve los datos procesados desde SQLite
+                    data = await window.api.obtenerResultadosHoy();
+                } catch (e) {
+                    console.error("Error API Desktop:", e);
+                    error = e;
+                }
+            }
+            // 2. MODO WEB (Supabase)
+            else if (window.supabaseInstance) {
+                const supabase = window.supabaseInstance;
+                // Usar fecha LOCAL
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hoy = `${year}-${month}-${day}`;
+
+                const res = await supabase.from('sorteos').select('*').eq('fecha', hoy);
+                data = res.data;
+                error = res.error;
+
+                // Ordenar en JS solo si viene de Supabase (Desktop ya lo hace)
+                if (data) {
+                    data.sort((a, b) => {
+                        const dateA = new Date(`1970/01/01 ${a.hora}`);
+                        const dateB = new Date(`1970/01/01 ${b.hora}`);
+                        return dateA - dateB;
+                    });
+                }
+            } else {
+                return; // Ni uno ni otro
+            }
 
             if (error) {
                 container.innerHTML = `<div style="text-align:center; padding:20px; color:#ff5555;">Error de conexión</div>`;
@@ -454,28 +501,30 @@
             }
 
             if (!data || data.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-clock" style="font-size:30px; margin-bottom:10px;"></i><br>Esperando primer sorteo...</div>';
-                return;
-            }
 
-            // ORDENAR CRONOLÓGICAMENTE (Fix 8am vs 10am)
-            data.sort((a, b) => {
-                const dateA = new Date(`1970/01/01 ${a.hora}`);
-                const dateB = new Date(`1970/01/01 ${b.hora}`);
-                return dateA - dateB;
-            });
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-clock" style="font-size:30px; margin-bottom:10px;"></i><br>Esperando primer sorteo...</div>';
+                    return;
+                }
 
-            // Revertir para que el último (más reciente) salga primero en la lista, O mantener orden cronológico?
-            // "Orden de salida" suele ser del último al primero (LIFO) o cronológico (FIFO)?
-            // El usuario pidió "organisaremos por orden de salida ejemplo (8:00amo, 9:00am...)". Eso es FIFO (Cronológico).
-            // Entonces el primer sorteo (8am) arriba, y el último al final.
-            // O al revés? "Orden de salida" suele implicar secuencia.
-            // Si dijo "8:00, 9:00...", asumo Ascendente.
+                // ORDENAR CRONOLÓGICAMENTE (Fix 8am vs 10am)
+                data.sort((a, b) => {
+                    const dateA = new Date(`1970/01/01 ${a.hora}`);
+                    const dateB = new Date(`1970/01/01 ${b.hora}`);
+                    return dateA - dateB;
+                });
 
-            let html = '';
-            data.forEach(r => {
-                const icono = iconos[r.animal] || '🎲';
-                html += `
+                // Revertir para que el último (más reciente) salga primero en la lista, O mantener orden cronológico?
+                // "Orden de salida" suele ser del último al primero (LIFO) o cronológico (FIFO)?
+                // El usuario pidió "organisaremos por orden de salida ejemplo (8:00amo, 9:00am...)". Eso es FIFO (Cronológico).
+                // Entonces el primer sorteo (8am) arriba, y el último al final.
+                // O al revés? "Orden de salida" suele implicar secuencia.
+                // Si dijo "8:00, 9:00...", asumo Ascendente.
+
+                let html = '';
+                data.forEach(r => {
+                    const icono = iconos[r.animal] || '🎲';
+                    html += `
                     <div class="card">
                         <div style="display:flex; align-items:center;">
                             <div class="animal-icon">${icono}</div>
@@ -487,58 +536,67 @@
                         <div class="badge">${r.hora}</div>
                     </div>
                 `;
-            });
-            container.innerHTML = html;
-        }
-
-        async function cargarPredicciones() {
-            const supabase = window.supabaseInstance;
-            if (!supabase) return;
-
-            const container = document.getElementById('lista-predicciones');
-
-            // --- LÓGICA SINCRONIZADA: OBTENER DE TABLA PREDICCIONES (LLENADA POR DESKTOP) ---
-            const { data, error } = await supabase
-                .from('predicciones')
-                .select('*')
-                .order('ranking', { ascending: true }); // Ordenar por ranking (1, 2, 3)
-
-            if (error) {
-                console.error("Error cargando predicciones:", error);
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#ff5555;">Error al cargar.</div>';
-                return;
+                });
+                container.innerHTML = html;
             }
 
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-magic" style="font-size:30px; margin-bottom:10px;"></i><br>Esperando que la App de Escritorio genere predicciones...</div>';
-                return;
-            }
+            async function cargarPredicciones() {
+                const container = document.getElementById('lista-predicciones');
+                let data = [];
+                let error = null;
 
-            const preds = data;
+                // 1. DESKTOP
+                if (window.api) {
+                    try {
+                        data = await window.api.obtenerPrediccion();
+                    } catch (e) { error = e; }
+                }
+                // 2. WEB
+                else if (window.supabaseInstance) {
+                    const res = await window.supabaseInstance
+                        .from('predicciones')
+                        .select('*')
+                        .order('ranking', { ascending: true });
+                    data = res.data;
+                    error = res.error;
+                } else { return; }
 
-            if (preds.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">Sin patrones claros aún.</div>';
-                return;
-            }
+                if (error) {
+                    console.error("Error cargando predicciones:", error);
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#ff5555;">Error al cargar.</div>';
+                    return;
+                }
 
-            // Renderizar GRID de 3 Columnas
-            let html = '<div class="pred-grid">';
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-magic" style="font-size:30px; margin-bottom:10px;"></i><br>Esperando que la App de Escritorio genere predicciones...</div>';
+                    return;
+                }
 
-            const groups = {
-                '🔥 Calientes': data.filter(p => p.ranking <= 2),
-                '🔒 Fijos': data.filter(p => p.ranking >= 3 && p.ranking <= 4),
-                '💣 Explosivos': data.filter(p => p.ranking >= 5)
-            };
+                const preds = data;
 
-            for (const [titulo, items] of Object.entries(groups)) {
-                html += `<div class="pred-column"><h3>${titulo}</h3>`;
+                if (preds.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;">Sin patrones claros aún.</div>';
+                    return;
+                }
 
-                if (items.length === 0) {
-                    html += `<div style="text-align:center; color:#666; font-size:12px;">...</div>`;
-                } else {
-                    items.forEach((p) => {
-                        const icono = iconos[p.animal] || '🔮';
-                        html += `
+                // Renderizar GRID de 3 Columnas
+                let html = '<div class="pred-grid">';
+
+                const groups = {
+                    '🔥 Calientes': data.filter(p => p.ranking <= 2),
+                    '🔒 Fijos': data.filter(p => p.ranking >= 3 && p.ranking <= 4),
+                    '💣 Explosivos': data.filter(p => p.ranking >= 5)
+                };
+
+                for (const [titulo, items] of Object.entries(groups)) {
+                    html += `<div class="pred-column"><h3>${titulo}</h3>`;
+
+                    if (items.length === 0) {
+                        html += `<div style="text-align:center; color:#666; font-size:12px;">...</div>`;
+                    } else {
+                        items.forEach((p) => {
+                            const icono = iconos[p.animal] || '🔮';
+                            html += `
                             <div class="card pred-card">
                                 <div style="width:100%">
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -556,38 +614,50 @@
                                 </div>
                             </div>
                         `;
-                    });
+                        });
+                    }
+                    html += `</div>`; // Cerrar columna
                 }
-                html += `</div>`; // Cerrar columna
-            }
-            html += '</div>'; // Cerrar grid
-            container.innerHTML = html;
-        }
-
-        async function cargarEstadisticas() {
-            const supabase = window.supabaseInstance;
-            if (!supabase) return;
-            const container = document.getElementById('lista-estadisticas');
-
-            const { data, error } = await supabase
-                .from('estadisticas')
-                .select('*')
-                .order('dias_sin_salir', { ascending: false })
-                .limit(10);
-
-            if (error) {
-                container.innerHTML = '<div style="text-align:center; padding:20px; color:#ff5555;">Error obteniendo estadísticas</div>';
-                return;
-            }
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-chart-bar" style="font-size:30px;"></i><br>Aún no hay estadísticas sincronizadas.</div>';
-                return;
+                html += '</div>'; // Cerrar grid
+                container.innerHTML = html;
             }
 
-            let html = '';
-            data.forEach(s => {
-                const icono = iconos[s.animal] || '📊';
-                html += `
+            async function cargarEstadisticas() {
+                const container = document.getElementById('lista-estadisticas');
+                let data = [];
+                let error = null;
+
+                // 1. DESKTOP
+                if (window.api) {
+                    try {
+                        data = await window.api.obtenerEstadisticas();
+                        if (data) data = data.slice(0, 10);
+                    } catch (e) { error = e; }
+                }
+                // 2. WEB
+                else if (window.supabaseInstance) {
+                    const res = await window.supabaseInstance
+                        .from('estadisticas')
+                        .select('*')
+                        .order('dias_sin_salir', { ascending: false })
+                        .limit(10);
+                    data = res.data;
+                    error = res.error;
+                } else { return; }
+
+                if (error) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:#ff5555;">Error obteniendo estadísticas</div>';
+                    return;
+                }
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#444;"><i class="fas fa-chart-bar" style="font-size:30px;"></i><br>Aún no hay estadísticas sincronizadas.</div>';
+                    return;
+                }
+
+                let html = '';
+                data.forEach(s => {
+                    const icono = iconos[s.animal] || '📊';
+                    html += `
                     <div class="stat-card">
                         <div style="display:flex; align-items:center;">
                              <div class="animal-icon" style="font-size:24px;">${icono}</div>
@@ -601,76 +671,76 @@
                         </div>
                     </div>
                 `;
-            });
-            container.innerHTML = html;
-        }
+                });
+                container.innerHTML = html;
+            }
 
-        function iniciarApp() {
+            function iniciarApp() {
+                // Iniciar
+                cargarResultados();
+                cargarPredicciones();
+                cargarEstadisticas();
+
+                // --- REALTIME SUBSCRIPTIONS ---
+                if (window.supabaseInstance) {
+                    const channel = window.supabaseInstance.channel('cambios-lotto')
+                        .on(
+                            'postgres_changes',
+                            { event: '*', schema: 'public', table: 'sorteos' },
+                            (payload) => {
+                                console.log('Cambio en sorteos:', payload);
+                                cargarResultados();
+                            }
+                        )
+                        .subscribe();
+                }
+            }
+
+            // --- UI LOGIC ---
+            window.cambiarTab = function (tabId, element) {
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+                document.getElementById('tab-' + tabId).classList.add('active');
+                element.classList.add('active');
+            }
+
             // Iniciar
             cargarResultados();
             cargarPredicciones();
-            cargarEstadisticas();
 
-            // --- REALTIME SUBSCRIPTIONS ---
-            if (window.supabaseInstance) {
-                const channel = window.supabaseInstance.channel('cambios-lotto')
-                    .on(
-                        'postgres_changes',
-                        { event: '*', schema: 'public', table: 'sorteos' },
-                        (payload) => {
-                            console.log('Cambio en sorteos:', payload);
-                            cargarResultados();
-                        }
-                    )
-                    .subscribe();
+            // --- REGISTRO PWA (SERVICE WORKER) ---
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado:', reg.scope))
+                    .catch(err => console.log('Error SW:', err));
             }
-        }
 
-        // --- UI LOGIC ---
-        window.cambiarTab = function (tabId, element) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            // --- PWA INSTALLATION ---
+            let deferredPrompt;
+            const btnInstall = document.getElementById('btn-install');
 
-            document.getElementById('tab-' + tabId).classList.add('active');
-            element.classList.add('active');
-        }
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // Prevenir que Chrome muestre el prompt automáticamente
+                e.preventDefault();
+                // Guardar el evento para dispararlo después
+                deferredPrompt = e;
+                // Mostrar el botón
+                btnInstall.style.display = 'block';
+            });
 
-        // Iniciar
-        cargarResultados();
-        cargarPredicciones();
+            btnInstall.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    deferredPrompt = null;
+                    btnInstall.style.display = 'none';
+                }
+            });
 
-        // --- REGISTRO PWA (SERVICE WORKER) ---
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker registrado:', reg.scope))
-                .catch(err => console.log('Error SW:', err));
-        }
-
-        // --- PWA INSTALLATION ---
-        let deferredPrompt;
-        const btnInstall = document.getElementById('btn-install');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevenir que Chrome muestre el prompt automáticamente
-            e.preventDefault();
-            // Guardar el evento para dispararlo después
-            deferredPrompt = e;
-            // Mostrar el botón
-            btnInstall.style.display = 'block';
-        });
-
-        btnInstall.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
+            window.addEventListener('appinstalled', () => {
                 btnInstall.style.display = 'none';
-            }
-        });
-
-        window.addEventListener('appinstalled', () => {
-            btnInstall.style.display = 'none';
-        });
+            });
 
     </script>
 </body>
