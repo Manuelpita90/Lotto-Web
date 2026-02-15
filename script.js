@@ -47,21 +47,6 @@ let notificationCount = parseInt(localStorage.getItem('lotto_notif_count')) || 0
 const audioMatch = new Audio('../sounds/win.mp3');   // Sonido especial (Acierto)
 const audioNotify = new Audio('../sounds/notify.mp3'); // Sonido normal (Nuevo sorteo)
 
-// --- NOTIFICACIONES NATIVAS (Service Worker) ---
-function enviarNotificacionLocal(titulo, cuerpo) {
-    if (Notification.permission === 'granted' && navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification(titulo, {
-                body: cuerpo,
-                icon: 'icon.png',
-                badge: 'icon.png',
-                vibrate: [100, 50, 100],
-                tag: 'lotto-update' // Evita acumular muchas notificaciones
-            });
-        });
-    }
-}
-
 // --- 2. FUNCIÓN GUARDAR (Botón +) ---
 // Referencias al nuevo modal
 const modalManual = document.getElementById('modal-manual-entry');
@@ -284,6 +269,8 @@ async function mostrarInfo() {
 // Asignar evento al botón de info
 if (btnInfo) {
     btnInfo.addEventListener('click', mostrarInfo);
+} else {
+    console.error("⚠️ El botón .btn-info no se encontró en el HTML.");
 }
 
 
@@ -359,10 +346,7 @@ function cerrarModal() {
 }
 
 // Asignar al botón amarillo (.btn-chart)
-const btnChart = document.querySelector('.btn-chart');
-if (btnChart) {
-    btnChart.addEventListener('click', abrirEstadisticas);
-}
+document.querySelector('.btn-chart').addEventListener('click', abrirEstadisticas);
 
 // --- 6.1 HISTORIAL DE SINCRONIZACIÓN ---
 const modalHistory = document.getElementById('modal-sync-history');
@@ -437,17 +421,6 @@ if (btnBell) {
         notificacionesActivas = !notificacionesActivas;
         localStorage.setItem('lotto_notif_active', notificacionesActivas);
         updateBellUI();
-
-        // Solicitar permiso nativo al activar
-        if (notificacionesActivas && 'Notification' in window) {
-            if (Notification.permission !== 'granted') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        enviarNotificacionLocal('¡Notificaciones Activas!', 'Te avisaremos cuando salga un nuevo animalito.');
-                    }
-                });
-            }
-        }
     });
     updateBellUI();
 }
@@ -584,6 +557,22 @@ async function sincronizarDatos(esAutomatico = false) {
 if (btnRefresh) {
     btnRefresh.onclick = null; // Quitamos el onclick="location.reload()" que tenía en el HTML
     btnRefresh.addEventListener('click', sincronizarDatos);
+} else {
+    console.error("⚠️ El botón .btn-refresh no se encontró en el HTML.");
+}
+
+// Asignar al botón flotante (FAB)
+const fabReload = document.getElementById('fab-reload');
+if (fabReload) {
+    fabReload.addEventListener('click', async () => {
+        const icon = fabReload.querySelector('i');
+        icon.classList.add('fa-spin'); // Iniciar rotación
+        try {
+            await sincronizarDatos(false);
+        } finally {
+            setTimeout(() => icon.classList.remove('fa-spin'), 500); // Parar rotación
+        }
+    });
 }
 
 // --- 8. FUNCIÓN PARA MOSTRAR RESULTADOS DE HOY ---
@@ -673,7 +662,6 @@ async function actualizarResultadosHoy() {
             if (notificacionesActivas && !primeraCarga) {
                 audioNotify.currentTime = 0;
                 audioNotify.play().catch(() => { });
-                enviarNotificacionLocal('¡Nuevo Sorteo!', `${ultimo.hora}: ${ultimo.numero} - ${ultimo.animal}`);
             }
         }
         ultimosAciertos = aciertos;

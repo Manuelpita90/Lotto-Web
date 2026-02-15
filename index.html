@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon.png">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @keyframes fadeInButton {
             to {
@@ -396,6 +396,27 @@
         }
         .status-dot.connected { background-color: #00ffaa; box-shadow: 0 0 8px #00ffaa; }
         .status-dot.disconnected { background-color: #ff5555; box-shadow: 0 0 8px #ff5555; }
+
+        /* --- SKELETON LOADING --- */
+        .skeleton {
+            background: linear-gradient(90deg, #2b2b36 25%, #3a3a45 50%, #2b2b36 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+            color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .skeleton-text {
+            height: 14px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+        }
+        .skeleton-card { pointer-events: none; }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
 </head>
 
@@ -482,6 +503,11 @@
             <div id="modal-animal-list" class="history-list"></div>
         </div>
     </div>
+
+    <!-- FAB Recargar (Móvil) -->
+    <button id="fab-reload" class="fab-btn" title="Recargar Datos">
+        <i class="fas fa-sync-alt"></i>
+    </button>
 
     <!-- NAVEGACIÓN -->
     <div class="nav">
@@ -594,6 +620,22 @@
             return coloresAnimales[animal] || '#ffffff';
         }
 
+        // --- SKELETON GENERATOR ---
+        function getSkeletonHTML() {
+            return Array(5).fill(0).map(() => `
+                <div class="card skeleton-card">
+                    <div style="display:flex; align-items:center;">
+                        <div class="animal-icon skeleton"></div>
+                        <div class="info" style="width: 120px;">
+                            <div class="skeleton skeleton-text" style="width: 80%;">.</div>
+                            <div class="skeleton skeleton-text" style="width: 50%;">.</div>
+                        </div>
+                    </div>
+                    <div class="badge skeleton" style="width: 50px; height: 24px;">.</div>
+                </div>
+            `).join('');
+        }
+
         // --- MODAL LOGIC ---
         function cerrarModalHistorial() {
             const modal = document.getElementById('modal-historial');
@@ -685,6 +727,9 @@
             const container = document.getElementById('lista-resultados');
             let data = [];
             let error = null;
+
+            // Mostrar Skeleton mientras carga
+            container.innerHTML = getSkeletonHTML();
 
             // 1. INTENTAR MODO ESCRITORIO (Prioridad)
             if (window.api) {
