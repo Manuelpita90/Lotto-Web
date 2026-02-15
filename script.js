@@ -1,5 +1,6 @@
 // --- 1. CONFIGURACIÓN Y REFERENCIAS ---
-// --- 1. CONFIGURACIÓN Y REFERENCIAS ---
+console.log(`%c 🚀 Lotto IA Iniciado en modo: ${window.api ? 'Escritorio (Electron)' : 'Web (Navegador)'}`, 'background: #004d00; color: #00ffaa; font-size: 12px; padding: 4px; border-radius: 4px;');
+
 const btnPredecir = document.getElementById('btn-predecir');
 const btnAgregar = document.getElementById('btn-agregar');
 // Removed: resultsArea (Now we use specific columns)
@@ -735,10 +736,19 @@ if (!window.api) {
                 return true;
             },
             obtenerResultadosHoy: async (fecha) => {
+                // FIX: Si no llega fecha, usar la de hoy (Local)
+                let queryDate = fecha;
+                if (!queryDate) {
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+                    queryDate = `${year}-${month}-${day}`;
+                }
                 const { data, error } = await _supabase
                     .from('sorteos')
                     .select('*')
-                    .eq('fecha', fecha)
+                    .eq('fecha', queryDate)
                     .order('hora', { ascending: true });
                 if (error) { console.error(error); return []; }
                 return data;
@@ -777,8 +787,14 @@ if (!window.api) {
                 }));
             },
             obtenerEstadisticas: async () => {
-                // Versión simplificada para web (consultar API si fuera necesario)
-                return []; // Deshabilitado en web por rendimiento
+                // FIX: Habilitar descarga de estadísticas
+                const { data, error } = await _supabase
+                    .from('estadisticas')
+                    .select('*')
+                    .order('dias_sin_salir', { ascending: false })
+                    .limit(15);
+                if (error) { console.error(error); return []; }
+                return data;
             },
             sincronizarWeb: async () => "Sincronización solo disponible en Escritorio.",
             obtenerHistorialSync: async () => [],
