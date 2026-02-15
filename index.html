@@ -583,6 +583,70 @@
                         let supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                         log("Supabase inicializado correctamente.");
                         window.supabaseInstance = supabase;
+
+                        // --- INYECTAR API POLYFILL AQUÍ (Donde es seguro) ---
+                        window.api = {
+                            test: () => "Modo Web Seguro",
+                            guardarSorteo: async (datos) => {
+                                const { error } = await supabase.from('sorteos').upsert(datos, { onConflict: 'fecha, hora' });
+                                if (error) throw error.message;
+                                return true;
+                            },
+                            obtenerResultadosHoy: async (fecha) => {
+                                let queryDate = fecha;
+                                if (!queryDate) {
+                                    const now = new Date();
+                                    const year = now.getFullYear();
+                                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                                    const day = String(now.getDate()).padStart(2, '0');
+                                    queryDate = `${year}-${month}-${day}`;
+                                }
+                                const { data, error } = await supabase
+                                    .from('sorteos')
+                                    .select('*')
+                                    .eq('fecha', queryDate)
+                                    .order('hora', { ascending: true });
+                                if (error) { console.error(error); return []; }
+                                return data;
+                            },
+                            ultimoSorteo: async () => {
+                                const { data, error } = await supabase.from('sorteos').select('*').order('fecha', { ascending: false }).order('hora', { ascending: false }).limit(1);
+                                return (data && data.length > 0) ? data[0] : null;
+                            },
+                            contarRegistros: async () => {
+                                const { count } = await supabase.from('sorteos').select('*', { count: 'exact', head: true });
+                                return { count: count || 0 };
+                            },
+                            obtenerPrediccion: async () => {
+                                const { data, error } = await supabase.from('predicciones').select('*').order('ranking', { ascending: true });
+                                if (error) { console.error(error); return []; }
+                                if (!data || data.length === 0) return [];
+                                return data.map(p => ({
+                                    animal: p.animal,
+                                    numero: p.numero,
+                                    probabilidad: p.probabilidad,
+                                    veces: 0,
+                                    esFuertePorHorario: false,
+                                    ranking: p.ranking
+                                }));
+                            },
+                            obtenerEstadisticas: async () => {
+                                const { data, error } = await supabase.from('estadisticas').select('*').order('dias_sin_salir', { ascending: false }).limit(15);
+                                if (error) { console.error(error); return []; }
+                                return data;
+                            },
+                            sincronizarWeb: async () => "Sincronización solo disponible en Escritorio.",
+                            obtenerHistorialSync: async () => [],
+                            obtenerVersion: async () => "Web 1.0.0",
+                            actualizarRecordatorios: async () => { }
+                        };
+                        console.log("✅ API Web inyectada exitosamente.");
+                        
+                        // Forzar actualización inicial de la UI
+                        if (typeof actualizarResultadosHoy === 'function') actualizarResultadosHoy();
+                        if (typeof predecir === 'function') predecir();
+                        // ----------------------------------------------------
+
                         iniciarApp();
                     } catch (err) {
                         log("Error inicializando Supabase: " + err.message);
