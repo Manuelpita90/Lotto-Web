@@ -1,7 +1,9 @@
 {
   "name": "Lotto IA Móvil",
   "short_name": "Lotto IA",
+  "description": "Resultados en vivo, estadísticas y predicciones con IA para Lotto Activo.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
@@ -10,7 +12,10 @@
     {
       "src": "icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["entertainment", "utilities"],
+  "lang": "es"
 }
