@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lotto-ia-v13';
+const CACHE_NAME = 'lotto-ia-v18';
 const DATA_CACHE_NAME = 'lotto-data-v1'; // Nuevo caché específico para datos
 const urlsToCache = [
   './',
@@ -13,6 +13,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Forzar activación inmediata de la nueva versión
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -30,7 +31,7 @@ self.addEventListener('activate', event => {
             return caches.delete(cacheName);
           }
         })
-      );
+      ).then(() => self.clients.claim()) // Tomar control de la página inmediatamente
     })
   );
 });
@@ -56,6 +57,53 @@ self.addEventListener('fetch', event => {
   // 2. ESTRATEGIA PARA ARCHIVOS ESTÁTICOS: Cache First (Caché primero, si no está -> Red)
   event.respondWith(
     caches.match(event.request)
-      .then(response => response || fetch(event.request))
+      .then(response => {
+        if (response) return response; // Si está en caché, devolverlo
+
+        // Si no está, ir a la red y guardarlo dinámicamente (Dynamic Caching)
+        return fetch(event.request).then(networkResponse => {
+          // Verificar si la respuesta es válida antes de guardar
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'error') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        });
+      })
+  );
+});
+
+// 3. NOTIFICACIONES PUSH Y LOCALES
+self.addEventListener('push', event => {
+  // Manejo de notificaciones enviadas desde un servidor (Backend)
+  const data = event.data ? event.data.json() : { title: 'Lotto IA', body: 'Nueva actualización' };
+  
+  const options = {
+    body: data.body,
+    icon: './icon.png',
+    badge: './icon.png',
+    vibrate: [100, 50, 100],
+    data: { url: data.url || './index.html' }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  // Al hacer clic, abrir la ventana de la app o enfocarla si ya está abierta
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes('index.html') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('./index.html');
+      }
+    })
   );
 });

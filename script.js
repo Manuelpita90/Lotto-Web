@@ -10,7 +10,7 @@ const matchCounter = document.getElementById('match-counter');
 const statusBadge = document.getElementById('connection-status');
 
 // --- VALIDACIÓN BOTÓN PREDECIR ---
-btnPredecir.disabled = false; // Siempre habilitado en nuevo diseño
+if (btnPredecir) btnPredecir.disabled = false; // Siempre habilitado en nuevo diseño
 // Removed: selectSorteo listener
 
 // Mapa de nombres exactos
@@ -46,6 +46,21 @@ let notificationCount = parseInt(localStorage.getItem('lotto_notif_count')) || 0
 // --- SONIDOS ---
 const audioMatch = new Audio('../sounds/win.mp3');   // Sonido especial (Acierto)
 const audioNotify = new Audio('../sounds/notify.mp3'); // Sonido normal (Nuevo sorteo)
+
+// --- NOTIFICACIONES NATIVAS (Service Worker) ---
+function enviarNotificacionLocal(titulo, cuerpo) {
+    if (Notification.permission === 'granted' && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification(titulo, {
+                body: cuerpo,
+                icon: 'icon.png',
+                badge: 'icon.png',
+                vibrate: [100, 50, 100],
+                tag: 'lotto-update' // Evita acumular muchas notificaciones
+            });
+        });
+    }
+}
 
 // --- 2. FUNCIÓN GUARDAR (Botón +) ---
 // Referencias al nuevo modal
@@ -233,8 +248,8 @@ function renderizarResultados(lista) {
 }
 
 // --- 5. EVENTOS ---
-btnAgregar.addEventListener('click', abrirModalManual);
-btnPredecir.addEventListener('click', predecir);
+if (btnAgregar) btnAgregar.addEventListener('click', abrirModalManual);
+if (btnPredecir) btnPredecir.addEventListener('click', predecir);
 
 // --- NUEVO: MODAL DE INFORMACIÓN ---
 const modalInfo = document.getElementById('modal-info');
@@ -269,8 +284,6 @@ async function mostrarInfo() {
 // Asignar evento al botón de info
 if (btnInfo) {
     btnInfo.addEventListener('click', mostrarInfo);
-} else {
-    console.error("⚠️ El botón .btn-info no se encontró en el HTML.");
 }
 
 
@@ -346,7 +359,10 @@ function cerrarModal() {
 }
 
 // Asignar al botón amarillo (.btn-chart)
-document.querySelector('.btn-chart').addEventListener('click', abrirEstadisticas);
+const btnChart = document.querySelector('.btn-chart');
+if (btnChart) {
+    btnChart.addEventListener('click', abrirEstadisticas);
+}
 
 // --- 6.1 HISTORIAL DE SINCRONIZACIÓN ---
 const modalHistory = document.getElementById('modal-sync-history');
@@ -421,6 +437,17 @@ if (btnBell) {
         notificacionesActivas = !notificacionesActivas;
         localStorage.setItem('lotto_notif_active', notificacionesActivas);
         updateBellUI();
+
+        // Solicitar permiso nativo al activar
+        if (notificacionesActivas && 'Notification' in window) {
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        enviarNotificacionLocal('¡Notificaciones Activas!', 'Te avisaremos cuando salga un nuevo animalito.');
+                    }
+                });
+            }
+        }
     });
     updateBellUI();
 }
@@ -557,8 +584,6 @@ async function sincronizarDatos(esAutomatico = false) {
 if (btnRefresh) {
     btnRefresh.onclick = null; // Quitamos el onclick="location.reload()" que tenía en el HTML
     btnRefresh.addEventListener('click', sincronizarDatos);
-} else {
-    console.error("⚠️ El botón .btn-refresh no se encontró en el HTML.");
 }
 
 // --- 8. FUNCIÓN PARA MOSTRAR RESULTADOS DE HOY ---
@@ -573,10 +598,10 @@ async function actualizarResultadosHoy() {
 
     try {
         const resultados = await window.api.obtenerResultadosHoy(fechaHoy);
-        todayResults.innerHTML = ''; // Limpiar
+        if (todayResults) todayResults.innerHTML = ''; // Limpiar
 
         if (resultados.length === 0) {
-            todayResults.innerHTML = '<span style="color: #666; width: 100%; text-align: right; font-size: 12px;">Sin resultados hoy</span>';
+            if (todayResults) todayResults.innerHTML = '<span style="color: #666; width: 100%; text-align: right; font-size: 12px;">Sin resultados hoy</span>';
             if (matchCounter) matchCounter.innerText = 'Aciertos Hoy: 0';
             ultimosAciertos = 0;
             return;
@@ -625,7 +650,7 @@ async function actualizarResultadosHoy() {
                 <div style="font-size: 18px; margin: 2px 0;">${icono}</div>
                 <span class="mini-animal">${r.animal}</span>
             `;
-            todayResults.appendChild(div);
+            if (todayResults) todayResults.appendChild(div);
         });
 
         if (aciertos > ultimosAciertos) {
@@ -648,6 +673,7 @@ async function actualizarResultadosHoy() {
             if (notificacionesActivas && !primeraCarga) {
                 audioNotify.currentTime = 0;
                 audioNotify.play().catch(() => { });
+                enviarNotificacionLocal('¡Nuevo Sorteo!', `${ultimo.hora}: ${ultimo.numero} - ${ultimo.animal}`);
             }
         }
         ultimosAciertos = aciertos;
@@ -661,6 +687,7 @@ async function actualizarResultadosHoy() {
 
 // Función auxiliar para actualizar resaltados sin recargar todo
 function actualizarHighlightsHoy() {
+    if (!todayResults) return;
     const cards = todayResults.querySelectorAll('.result-mini-card');
     let aciertos = 0;
     cards.forEach(card => {
