@@ -298,6 +298,10 @@
 <body>
 
     <!-- SPLASH SCREEN -->
+    <div id="debug-log"
+        style="position:fixed; bottom:0; left:0; width:100%; height:150px; background:rgba(0,0,0,0.8); color:#0f0; font-family:monospace; font-size:10px; overflow-y:scroll; z-index:9999; padding:5px; display:none;">
+        DEBUG LOG:<br></div>
+
     <div id="splash-screen">
         <img src="icon.png" alt="Logo">
         <h2 style="color: var(--primary); margin: 0; letter-spacing: 2px; font-size: 24px;">LOTTO IA</h2>
@@ -380,6 +384,18 @@
     </div>
 
     <script>
+        // --- LOGGER (DEBUG EN PANTALLA) ---
+        function log(msg) {
+            console.log(msg);
+            const d = document.getElementById('debug-log');
+            if (d) d.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+        }
+
+        // Activar debug si hay parametro ?debug=true
+        if (window.location.search.includes('debug=true')) {
+            document.getElementById('debug-log').style.display = 'block';
+        }
+
         // --- 0. LÓGICA SPLASH SCREEN (PRIORIDAD ALTA) ---
         // Definimos esto AL PRINCIPIO para asegurar que se ejecute incluso si hay errores de red abajo
         function ocultarSplash() {
@@ -412,40 +428,28 @@
 
             // MODO WEB (Supabase) vs MODO ESCRITORIO (API)
             if (window.api) {
-                console.log("Modo Escritorio Detectado");
+                log("Modo Escritorio Detectado");
                 iniciarApp();
             } else {
-                console.log("Modo Web Detectado");
+                log("Modo Web Detectado");
 
                 const SUPABASE_URL = 'https://ojmqvkzqwnexiellqlnj.supabase.co';
                 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbXF2a3pxd25leGllbGxxbG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDU4NjUsImV4cCI6MjA4NjUyMTg2NX0.8mRvyiQ43dQH01aGdezVbV8LwfA9YWlY2sjEsGvQhAY';
 
                 if (window.supabase) {
                     try {
-                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                        console.log("Supabase inicializado correctamente.");
+                        let supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                        log("Supabase inicializado correctamente.");
                         window.supabaseInstance = supabase;
                         iniciarApp();
                     } catch (err) {
-                        console.error("Error inicializando Supabase:", err);
+                        log("Error inicializando Supabase: " + err.message);
                         mostrarErrorGlobal();
                     }
                 } else {
-                    console.error("Supabase no cargó después de esperar.");
+                    log("FATAL: Supabase no cargó después de esperar.");
                     mostrarErrorGlobal();
                 }
-            }
-
-            let supabase;
-            if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log("Supabase inicializado.");
-                // Iniciar la app solo si hay supabase
-                window.supabaseInstance = supabase; // Guardar referencia global
-                iniciarApp();
-            } else {
-                console.error("Supabase no cargó (Offline o bloqueo).");
-                mostrarErrorGlobal();
             }
         });
 
@@ -747,7 +751,7 @@
                 btnInstall.style.display = 'none';
             });
 
-        };
+        });
     </script>
 </body>
 
