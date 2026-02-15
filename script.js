@@ -94,8 +94,14 @@ async function confirmarGuardadoManual() {
 
     const nombre = nombreAnimales[valor] || 'Desconocido';
 
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const fechaLocal = `${year}-${month}-${day}`;
+
     const datos = {
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: fechaLocal,
         hora: hora,
         numero: parseInt(valor) || 0,
         animal: nombre
@@ -559,7 +565,11 @@ if (btnRefresh) {
 async function actualizarResultadosHoy() {
     if (!window.api) return;
 
-    const fechaHoy = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const fechaHoy = `${year}-${month}-${day}`;
 
     try {
         const resultados = await window.api.obtenerResultadosHoy(fechaHoy);
@@ -814,7 +824,7 @@ if (!window.api) {
     }
 }
 
-(function init() {
+(async function init() {
     // 1. Restaurar último animal seleccionado (Ya no necesario)
     // const savedAnimal = localStorage.getItem('lotto_last_animal');
 
